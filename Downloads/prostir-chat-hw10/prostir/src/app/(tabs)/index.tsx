@@ -1,16 +1,44 @@
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, Text, FlatList, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { MaterialIcons } from "@expo/vector-icons";
 import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 import { COLORS } from "@/constants/theme";
-
-const formatTime = (ts: number) =>
-  new Date(ts).toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" });
+import { SwipeableRoomItem } from "@/components/SwipeableRoomItem";
+import { confirmAction, showMessage } from "@/utils/dialog";
 
 export default function ScreenHome() {
   const router = useRouter();
   const rooms = useQuery(api.rooms.listRooms);
+  const currentUser = useQuery(api.users.currentUser);
+  const deleteRoom = useMutation(api.rooms.deleteRoom);
+
+  const handleDeleteRoom = async (roomId: Id<"chatRooms">) => {
+    const room = rooms?.find((r) => r._id === roomId);
+    if (!room) return;
+
+    if (room.creatorId !== currentUser?._id) {
+      showMessage(
+        "Обмеження доступу",
+        "Лише автор кімнати має право видалити її для всіх учасників.",
+      );
+      return;
+    }
+
+    const ok = await confirmAction(
+      "Видалити кімнату?",
+      `Кімнату «${room.title}» та всі її повідомлення буде видалено. Цю дію неможливо скасувати.`,
+      "Видалити",
+    );
+    if (!ok) return;
+
+    try {
+      await deleteRoom({ roomId });
+    } catch (error: any) {
+      showMessage("Помилка", error?.message || "Не вдалося видалити кімнату");
+    }
+  };
 
   if (rooms === undefined) {
     return (
@@ -22,7 +50,9 @@ export default function ScreenHome() {
 
   return (
     <View className="flex-1 bg-black">
-      <Text className="text-white text-2xl font-bold px-4 pt-4 pb-2">Кімнати</Text>
+      <Text className="text-white text-2xl font-bold px-4 pt-4 pb-2">
+        Кімнати
+      </Text>
       <FlatList
         data={rooms}
         keyExtractor={(r) => r._id}
@@ -36,25 +66,14 @@ export default function ScreenHome() {
           </View>
         }
         renderItem={({ item }) => (
-          <TouchableOpacity
-            activeOpacity={0.8}
+          <SwipeableRoomItem
+            room={item}
+            isCreator={item.creatorId === currentUser?._id}
             onPress={() =>
               router.push({ pathname: "/chat/[id]", params: { id: item._id } })
             }
-            className="bg-surface border border-surfaceLight rounded-2xl p-4"
-          >
-            <View className="flex-row items-center justify-between">
-              <Text className="text-white text-base font-bold flex-1 mr-2" numberOfLines={1}>
-                {item.title}
-              </Text>
-              {item.lastMessageAt ? (
-                <Text className="text-grey text-xs">{formatTime(item.lastMessageAt)}</Text>
-              ) : null}
-            </View>
-            <Text className="text-grey text-sm mt-1" numberOfLines={1}>
-              {item.lastMessage ?? item.description ?? "Повідомлень ще немає"}
-            </Text>
-          </TouchableOpacity>
+            onDelete={handleDeleteRoom}
+          />
         )}
       />
     </View>
