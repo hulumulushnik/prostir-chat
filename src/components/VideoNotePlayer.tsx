@@ -17,7 +17,12 @@ const STROKE = 3;
 
 // Круглий відеоплеєр: автоплей без звуку в циклі, тап вмикає/вимикає звук,
 // навколо — круговий індикатор прогресу
-export function VideoNotePlayer({ videoUrl, duration = 0, size = 200, onLongPress }: Props) {
+export function VideoNotePlayer({
+  videoUrl,
+  duration = 0,
+  size = 200,
+  onLongPress,
+}: Props) {
   const [muted, setMuted] = useState(true);
 
   const player = useVideoPlayer(videoUrl, (p) => {
@@ -39,8 +44,17 @@ export function VideoNotePlayer({ videoUrl, duration = 0, size = 200, onLongPres
     bufferedPosition: player.bufferedPosition,
   });
 
-  const total = player.duration > 0 ? player.duration : duration;
-  const progress = total > 0 ? Math.min(1, currentTime / total) : 0;
+  const playerDuration = Number.isFinite(player.duration) ? player.duration : 0;
+  const total =
+    playerDuration > 0
+      ? playerDuration
+      : Number.isFinite(duration)
+        ? duration
+        : 0;
+  const rawProgress = total > 0 ? currentTime / total : 0;
+  const progress = Number.isFinite(rawProgress)
+    ? Math.min(1, Math.max(0, rawProgress))
+    : 0;
 
   const radius = (size - STROKE) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -60,9 +74,9 @@ export function VideoNotePlayer({ videoUrl, duration = 0, size = 200, onLongPres
           height: size - STROKE * 2 - 2,
           borderRadius: size,
           overflow: "hidden",
+          pointerEvents: "none",
         }}
         className="bg-surfaceLight"
-        pointerEvents="none"
       >
         <VideoView
           player={player}
@@ -75,8 +89,16 @@ export function VideoNotePlayer({ videoUrl, duration = 0, size = 200, onLongPres
       <Svg
         width={size}
         height={size}
-        style={{ position: "absolute", top: 0, left: 0 }}
-        pointerEvents="none"
+        // Поворот -90° (старт прогресу зверху) робимо на самому <Svg> через style:
+        // пропси rotation/origin на <Circle> на вебі дають невалідний атрибут
+        // `transform-origin` і помилку React 19.
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          transform: [{ rotate: "-90deg" }],
+          pointerEvents: "none",
+        }}
       >
         <Circle
           cx={size / 2}
@@ -96,13 +118,15 @@ export function VideoNotePlayer({ videoUrl, duration = 0, size = 200, onLongPres
           strokeDashoffset={circumference * (1 - progress)}
           strokeLinecap="round"
           fill="none"
-          rotation={-90}
-          origin={`${size / 2}, ${size / 2}`}
         />
       </Svg>
 
       <View className="absolute bottom-2 right-2 bg-black/60 px-2 py-1 rounded-full flex-row items-center gap-1">
-        <MaterialIcons name={muted ? "volume-off" : "volume-up"} size={12} color="#FFFFFF" />
+        <MaterialIcons
+          name={muted ? "volume-off" : "volume-up"}
+          size={12}
+          color="#FFFFFF"
+        />
         {total > 0 && (
           <Text className="text-[10px] text-white">{Math.round(total)} с</Text>
         )}
