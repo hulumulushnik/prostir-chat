@@ -1,6 +1,75 @@
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
+
+// ---------- ДЗ 14: Push-сповіщення ----------
+
+// Зберігає ExponentPushToken поточного користувача.
+// Один пристрій = один власник токена: якщо на цьому телефоні раніше
+// був залогінений інший акаунт, забираємо токен у нього, щоб чужі пуші
+// не приходили на цей пристрій.
+export const savePushToken = mutation({
+  args: { pushToken: v.string() },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Unauthorized: Потрібна авторизація");
+
+    const owners = await ctx.db
+      .query("users")
+      .withIndex("by_push_token", (q) => q.eq("pushToken", args.pushToken))
+      .collect();
+    for (const other of owners) {
+      if (other._id !== userId) {
+        await ctx.db.patch(other._id, { pushToken: undefined });
+      }
+    }
+
+    await ctx.db.patch(userId, { pushToken: args.pushToken });
+    return { success: true };
+  },
+});
+
+// Видаляє токен (викликається перед виходом з акаунта)
+export const removePushToken = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return;
+    await ctx.db.patch(userId, { pushToken: undefined });
+  },
+});
+
+// Expo повідомив, що токен більше недійсний (додаток видалено тощо)
+export const clearInvalidPushToken = internalMutation({
+  args: { pushToken: v.string() },
+  handler: async (ctx, args) => {
+    const owners = await ctx.db
+      .query("users")
+      .withIndex("by_push_token", (q) => q.eq("pushToken", args.pushToken))
+      .collect();
+    for (const u of owners) await ctx.db.patch(u._id, { pushToken: undefined });
+  },
+});
+
+// Бонус: вимкнути / увімкнути сповіщення для окремої кімнати
+export const toggleMuteRoom = mutation({
+  args: { roomId: v.id("chatRooms") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Unauthorized: Потрібна авторизація");
+    const user = await ctx.db.get(userId);
+    if (!user) throw new Error("Користувача не знайдено");
+
+    const muted = user.mutedRooms ?? [];
+    const isMuted = muted.includes(args.roomId);
+    await ctx.db.patch(userId, {
+      mutedRooms: isMuted
+        ? muted.filter((id) => id !== args.roomId)
+        : [...muted, args.roomId],
+    });
+    return { muted: !isMuted };
+  },
+});
 
 // Поточний авторизований користувач
 export const currentUser = query({

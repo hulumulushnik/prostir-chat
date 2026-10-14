@@ -2,8 +2,12 @@ import { useEffect } from "react";
 import { useConvexAuth } from "@convex-dev/auth/react";
 import * as SplashScreen from "expo-splash-screen";
 import { Stack, useRouter, useSegments } from "expo-router";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 export default function InitialLayout() {
+  // ДЗ 14: push-токен + перехід у чат по натисканню на сповіщення
+  usePushNotifications();
+
   const { isAuthenticated, isLoading } = useConvexAuth();
   const segments = useSegments();
   const router = useRouter();

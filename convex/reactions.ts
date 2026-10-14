@@ -1,6 +1,7 @@
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { notifyReaction } from "./pushNotifications";
 
 // Дозволений набір реакцій (синхронізовано з ReactionPicker на клієнті)
 export const ALLOWED_REACTIONS = ["👍", "❤️", "🔥", "😂", "😮", "😢"];
@@ -38,6 +39,10 @@ export const toggleReaction = mutation({
       emoji: args.emoji,
       createdAt: Date.now(),
     });
+
+    // ДЗ 14: пуш автору повідомлення (лише при додаванні, не при знятті)
+    await notifyReaction(ctx, { message, reactorId: userId, emoji: args.emoji });
+
     return { action: "added" as const, emoji: args.emoji };
   },
 });

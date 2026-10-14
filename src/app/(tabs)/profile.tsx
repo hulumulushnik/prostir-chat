@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView } from "react-native";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { MaterialIcons } from "@expo/vector-icons";
 import { api } from "@convex/_generated/api";
@@ -13,12 +13,16 @@ export default function ScreenProfile() {
   const user = useQuery(api.users.currentUser);
   const profile = useQuery(api.users.getUserProfile, user ? { userId: user._id } : "skip");
   const { signOut } = useAuthActions();
+  const removePushToken = useMutation(api.users.removePushToken);
   const [editOpen, setEditOpen] = useState(false);
 
   // Після виходу InitialLayout сам перенаправить на екран входу
   const handleSignOut = async () => {
     const ok = await confirmAction("Вихід з акаунта", "Ви дійсно бажаєте вийти?", "Вийти");
-    if (ok) await signOut();
+    if (!ok) return;
+    // ДЗ 14: відв'язуємо пристрій, щоб пуші цього акаунта сюди більше не йшли
+    await removePushToken().catch(() => {});
+    await signOut();
   };
 
   if (user === undefined) {
