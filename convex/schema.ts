@@ -17,9 +17,14 @@ export default defineSchema({
     posts: v.number(),
     // Інструкція 10: аватарка у Convex Storage
     avatarStorageId: v.optional(v.id("_storage")),
+    // ДЗ 14: Expo Push Token пристрою користувача
+    pushToken: v.optional(v.string()),
+    // ДЗ 14 (бонус): кімнати, для яких користувач вимкнув сповіщення
+    mutedRooms: v.optional(v.array(v.id("chatRooms"))),
   })
     .index("by_email", ["email"])
-    .index("by_username", ["username"]),
+    .index("by_username", ["username"])
+    .index("by_push_token", ["pushToken"]),
 
   posts: defineTable({
     userId: v.id("users"),

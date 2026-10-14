@@ -1,5 +1,7 @@
 // app.config.ts
+/// <reference types="node" />
 import { ConfigContext, ExpoConfig } from "expo/config";
+import { existsSync } from "fs";
 
 const APP_NAME = "Prostir";
 const PACKAGE_NAME = "com.prostir.app";
@@ -14,6 +16,17 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   console.log("📦 URL бази даних Convex:", process.env.EXPO_PUBLIC_CONVEX_URL);
 
   const isDev = environment === "development";
+
+  // ДЗ 14: файл Firebase (FCM v1). Підключаємо лише якщо він є, щоб збірка
+  // без нього не падала. Package name у Firebase має збігатися з android.package!
+  const googleServicesFile = existsSync("./google-services.json")
+    ? "./google-services.json"
+    : undefined;
+
+  // ДЗ 14: EAS projectId потрібен для getExpoPushTokenAsync.
+  // Отримати: `npx eas-cli@latest init` (або expo.dev → Project → ID),
+  // потім додати в .env.local: EAS_PROJECT_ID=xxxxxxxx-xxxx-...
+  const easProjectId = process.env.EAS_PROJECT_ID ?? config.extra?.eas?.projectId;
 
   return {
     ...config,
@@ -38,6 +51,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
 
     android: {
       package: isDev ? `${PACKAGE_NAME}.dev` : PACKAGE_NAME,
+      googleServicesFile,
       adaptiveIcon: {
         backgroundColor: "#E6F4FE",
         foregroundImage: "./assets/images/android-icon-foreground.png",
@@ -48,6 +62,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       permissions: [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
+        "android.permission.VIBRATE", // ДЗ 14: вібрація для пушів
+        "android.permission.POST_NOTIFICATIONS", // ДЗ 14: Android 13+
       ],
     },
 
@@ -85,7 +101,24 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         },
       ],
       ["expo-video"],
+      // ДЗ 14: системні сповіщення
+      [
+        "expo-notifications",
+        {
+          icon: "./assets/images/android-icon-monochrome.png", // біла іконка з прозорістю
+          color: "#2563EB",
+          defaultChannel: "default",
+        },
+      ],
     ],
+
+    extra: {
+      ...config.extra,
+      eas: {
+        ...config.extra?.eas,
+        ...(easProjectId ? { projectId: easProjectId } : {}),
+      },
+    },
 
     experiments: {
       typedRoutes: true,

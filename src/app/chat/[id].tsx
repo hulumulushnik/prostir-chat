@@ -61,6 +61,8 @@ export default function ChatScreen() {
   const sendVideoNoteMessage = useMutation(api.messages.sendVideoNoteMessage);
   const toggleReaction = useMutation(api.reactions.toggleReaction);
   const setTyping = useMutation(api.typing.setTyping);
+  const toggleMuteRoom = useMutation(api.users.toggleMuteRoom);
+  const isMuted = !!currentUser?.mutedRooms?.includes(roomId);
 
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -323,6 +325,17 @@ export default function ChatScreen() {
         <Text className="flex-1 text-white text-lg font-bold mx-2" numberOfLines={1}>
           {room.title}
         </Text>
+        {/* ДЗ 14 (бонус): вимкнути сповіщення цієї кімнати */}
+        <TouchableOpacity
+          onPress={() => toggleMuteRoom({ roomId }).catch(() => {})}
+          className="p-1 mr-1"
+        >
+          <MaterialIcons
+            name={isMuted ? "notifications-off" : "notifications-none"}
+            size={24}
+            color={isMuted ? COLORS.grey : COLORS.white}
+          />
+        </TouchableOpacity>
         <TouchableOpacity
           onPress={() => router.push({ pathname: "/settings/[id]", params: { id } })}
           className="p-1"

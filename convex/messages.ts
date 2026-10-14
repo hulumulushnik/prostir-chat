@@ -3,6 +3,7 @@ import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { Doc, Id } from "./_generated/dataModel";
+import { notifyNewMessage } from "./pushNotifications";
 
 // Текст для прев'ю останнього повідомлення у списку кімнат
 const previewOf = (
@@ -159,6 +160,15 @@ export const sendMessage = mutation({
     });
     await clearTyping(ctx, userId, args.chatRoomId);
 
+    // ДЗ 14: push-сповіщення учасникам кімнати / автору цитати
+    await notifyNewMessage(ctx, {
+      room,
+      sender: user,
+      messageId,
+      preview: content,
+      replyToId: args.replyToId,
+    });
+
     return messageId;
   },
 });
@@ -291,6 +301,15 @@ export const sendMediaMessage = mutation({
     });
     await clearTyping(ctx, userId, args.chatRoomId);
 
+    // ДЗ 14: push-сповіщення учасникам кімнати / автору цитати
+    await notifyNewMessage(ctx, {
+      room,
+      sender: user,
+      messageId,
+      preview: previewOf({ content: caption, imageUrl }),
+      replyToId: args.replyToId,
+    });
+
     return messageId;
   },
 });
@@ -335,6 +354,15 @@ export const sendAudioMessage = mutation({
       lastMessageAt: Date.now(),
     });
     await clearTyping(ctx, userId, args.chatRoomId);
+
+    // ДЗ 14: push-сповіщення учасникам кімнати / автору цитати
+    await notifyNewMessage(ctx, {
+      room,
+      sender: user,
+      messageId,
+      preview: previewOf({ audioUrl }),
+      replyToId: args.replyToId,
+    });
 
     return messageId;
   },
@@ -381,6 +409,15 @@ export const sendVideoNoteMessage = mutation({
       lastMessageAt: Date.now(),
     });
     await clearTyping(ctx, userId, args.chatRoomId);
+
+    // ДЗ 14: push-сповіщення учасникам кімнати / автору цитати
+    await notifyNewMessage(ctx, {
+      room,
+      sender: user,
+      messageId,
+      preview: previewOf({ videoUrl }),
+      replyToId: args.replyToId,
+    });
 
     return messageId;
   },
